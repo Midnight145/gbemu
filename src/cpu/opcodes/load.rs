@@ -426,25 +426,113 @@ impl CPU {
 // LDH (High RAM) operations
 impl CPU {
     // a8 is an 8 bit address which gets added to 0xFF00
-    pub fn ldh_a8_a(cpu: &mut CPU, bus: &mut Bus) {
+    pub fn ldh_a8_a(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let mut addr = cpu.read_u8_from_pc(bus) as u16;
         addr |= 0xFF00;
         bus.write_byte(addr, cpu.A);
+        12
     }
 
-    pub fn ldh_a_a8(cpu: &mut CPU, bus: &mut Bus) {
+    pub fn ldh_a_a8(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let mut addr = cpu.read_u8_from_pc(bus) as u16;
         addr |= 0xFF00;
         cpu.A = bus.read_byte(addr);
+        12
     }
 
-    pub fn ldh_c_a(cpu: &mut CPU, bus: &mut Bus) {
+    pub fn ldh_c_a(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let addr = cpu.C as u16 | 0xFF00;
         bus.write_byte(addr, cpu.A);
+        8
     }
-    
-    pub fn ldh_a_c(cpu: &mut CPU, bus: &mut Bus) {
+
+    pub fn ldh_a_c(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let addr = cpu.C as u16 | 0xFF00;
         cpu.A = bus.read_byte(addr);
+        8
     }
+}
+
+// 8/16bit hybrid operations
+impl CPU {
+    pub fn ld_a_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let addr = cpu.read_u16_from_pc(bus);
+        cpu.A = bus.read_byte(addr);
+        16
+    }
+
+    pub fn ld_a16_a(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let addr = cpu.read_u16_from_pc(bus);
+        bus.write_byte(addr, cpu.A);
+        16
+    }
+}
+
+// stack operations
+impl CPU {
+
+    pub fn push_u16(cpu: &mut CPU, bus: &mut Bus, value: u16) {
+        cpu.SP = cpu.SP.wrapping_sub(1);
+        bus.write_byte(cpu.SP, (value & 0xFF) as u8);
+        cpu.SP = cpu.SP.wrapping_sub(1);
+        bus.write_byte(cpu.SP, (value >> 8) as u8);
+    }
+
+    pub fn pop_u16(cpu: &mut CPU, bus: &mut Bus) -> u16 {
+        let lo = bus.read_byte(cpu.SP) as u16;
+        cpu.SP = cpu.SP.wrapping_add(1);
+        let hi = bus.read_byte(cpu.SP) as u16;
+        cpu.SP = cpu.SP.wrapping_add(1);
+        hi << 8 | lo
+    }
+
+    pub fn push_af(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let af = cpu.AF();
+        Self::push_u16(cpu, bus, af);
+        16
+    }
+
+    pub fn pop_af(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let value = Self::pop_u16(cpu, bus);
+        cpu.write_AF(value & 0xF0);
+        // flags autocomputed
+        12
+    }
+
+    pub fn push_bc(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let bc = cpu.BC();
+        Self::push_u16(cpu, bus, bc);
+        16
+    }
+
+    pub fn pop_bc(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let value = Self::pop_u16(cpu, bus);
+        cpu.write_BC(value);
+        12
+    }
+
+    pub fn push_de(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let de = cpu.DE();
+        Self::push_u16(cpu, bus, de);
+        16
+    }
+
+    pub fn pop_de(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let value = Self::pop_u16(cpu, bus);
+        cpu.write_DE(value);
+        12
+    }
+
+    pub fn push_hl(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let hl = cpu.HL();
+        Self::push_u16(cpu, bus, hl);
+        16
+    }
+
+    pub fn pop_hl(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let value = Self::pop_u16(cpu, bus);
+        cpu.write_HL(value);
+        12
+    }
+
 }

@@ -14,6 +14,11 @@ pub struct CPU {
     pub PC: u16,
     pub SP: u16,
     pub flags: Flags,
+    pub ime: bool,
+    pub ime_scheduled: bool, // effects of IME being enabled are delayed by one cycle
+    pub halt: bool,
+    pub stop: bool,
+    pub executed_invalid: bool,
 }
 
 impl CPU {
@@ -35,6 +40,11 @@ impl CPU {
                 H: false,
                 C: false,
             },
+            ime: false,
+            ime_scheduled: false,
+            halt: false,
+            stop: false,
+            executed_invalid: false,
         }
     }
 
@@ -55,13 +65,15 @@ impl CPU {
         self.flags.C = false;
     }
 
-    pub fn AF(&self) -> u16 {
-        ((self.A as u16) << 8) | (self.F as u16)
+    pub fn AF(&mut self) -> u16 {
+        self.F = self.flags.to_u8();
+        ((self.A as u16) << 8) | self.F as u16
     }
 
     pub fn write_AF(&mut self, value: u16) {
         self.A = (value >> 8) as u8;
-        self.F = (value & 0xFF) as u8;
+        self.F = (value & 0xF0) as u8;
+        self.flags = Flags::from_u8(self.F);
     }
 
     pub fn BC(&self) -> u16 {
@@ -96,6 +108,7 @@ impl CPU {
         self.PC += 1;
         byte
     }
+
     pub fn read_u16_from_pc(&mut self, bus: &Bus) -> u16 {
         let low = self.read_u8_from_pc(bus);
         let high = self.read_u8_from_pc(bus);
@@ -143,6 +156,25 @@ impl Flags {
 
     pub fn check_full_carry_sub_u16(&self, a: u16, b: u16) -> bool {
         a < b
+    }
+
+    pub fn from_u8(value: u8) -> Flags {
+        Flags{
+            Z: value & 0b1000_0000 != 0,
+            N: value & 0b0100_0000 != 0,
+            H: value & 0b0010_0000 != 0,
+            C: value & 0b0001_0000 != 0
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        let mut f = 0u8;
+
+        if self.Z { f |= 0b1000_0000; }
+        if self.N { f |= 0b0100_0000; }
+        if self.H { f |= 0b0010_0000; }
+        if self.C { f |= 0b0001_0000; }
+        f
     }
 
 }
