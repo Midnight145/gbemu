@@ -6,6 +6,7 @@ mod math;
 mod jump;
 mod ctrl;
 mod bitops;
+mod prefix;
 
 const OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
     CPU::nop, CPU::ld_bc_n16, CPU::ld_bc_a, CPU::inc_bc, CPU::inc_b, CPU::dec_b, CPU::ld_b_n8, CPU::rlca,
@@ -55,4 +56,45 @@ const OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
 
     CPU::ldh_a_a8, CPU::pop_af, CPU::ldh_a_c, CPU::di, CPU::invalid, CPU::push_af, CPU::or_a_u8, CPU::rst_30,
     CPU::ld_hl_sp_e8, CPU::ld_sp_hl, CPU::ld_a_a16, CPU::ei, CPU::invalid, CPU::invalid, CPU::cp_a_u8, CPU::rst_38
+];
+
+const PREFIXED_OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
+    CPU::rlc_b, CPU::rlc_c, CPU::rlc_d, CPU::rlc_e, CPU::rlc_h, CPU::rlc_l, CPU::rlc_hl, CPU::rlc_a,
+    CPU::rrc_b, CPU::rrc_c, CPU::rrc_d, CPU::rrc_e, CPU::rrc_h, CPU::rrc_l, CPU::rrc_hl, CPU::rrc_a,
+
+    CPU::rl_b, CPU::rl_c, CPU::rl_d, CPU::rl_e, CPU::rl_h, CPU::rl_l, CPU::rl_hl, CPU::rl_a,
+    CPU::rr_b, CPU::rr_c, CPU::rr_d, CPU::rr_e, CPU::rr_h, CPU::rr_l, CPU::rr_hl, CPU::rr_a,
+
+    CPU::sla_b, CPU::sla_c, CPU::sla_d, CPU::sla_e, CPU::sla_h, CPU::sla_l, CPU::sla_hl, CPU::sla_a,
+    CPU::sra_b, CPU::sra_c, CPU::sra_d, CPU::sra_e, CPU::sra_h, CPU::sra_l, CPU::sra_hl, CPU::sra_a,
+
+    CPU::swap_b, CPU::swap_c, CPU::swap_d, CPU::swap_e, CPU::swap_h, CPU::swap_l, CPU::swap_hl, CPU::swap_a,
+    CPU::srl_b, CPU::srl_c, CPU::srl_d, CPU::srl_e, CPU::srl_h, CPU::srl_l, CPU::srl_hl, CPU::srl_a,
+
+    CPU::bit0_b, CPU::bit0_c, CPU::bit0_d, CPU::bit0_e, CPU::bit0_h, CPU::bit0_l, CPU::bit0_hl, CPU::bit0_a,
+    CPU::bit1_b, CPU::bit1_c, CPU::bit1_d, CPU::bit1_e, CPU::bit1_h, CPU::bit1_l, CPU::bit1_hl, CPU::bit1_a,
+    CPU::bit2_b, CPU::bit2_c, CPU::bit2_d, CPU::bit2_e, CPU::bit2_h, CPU::bit2_l, CPU::bit2_hl, CPU::bit2_a,
+    CPU::bit3_b, CPU::bit3_c, CPU::bit3_d, CPU::bit3_e, CPU::bit3_h, CPU::bit3_l, CPU::bit3_hl, CPU::bit3_a,
+    CPU::bit4_b, CPU::bit4_c, CPU::bit4_d, CPU::bit4_e, CPU::bit4_h, CPU::bit4_l, CPU::bit4_hl, CPU::bit4_a,
+    CPU::bit5_b, CPU::bit5_c, CPU::bit5_d, CPU::bit5_e, CPU::bit5_h, CPU::bit5_l, CPU::bit5_hl, CPU::bit5_a,
+    CPU::bit6_b, CPU::bit6_c, CPU::bit6_d, CPU::bit6_e, CPU::bit6_h, CPU::bit6_l, CPU::bit6_hl, CPU::bit6_a,
+    CPU::bit7_b, CPU::bit7_c, CPU::bit7_d, CPU::bit7_e, CPU::bit7_h, CPU::bit7_l, CPU::bit7_hl, CPU::bit7_a,
+
+    CPU::res0_b, CPU::res0_c, CPU::res0_d, CPU::res0_e, CPU::res0_h, CPU::res0_l, CPU::res0_hl, CPU::res0_a,
+    CPU::res1_b, CPU::res1_c, CPU::res1_d, CPU::res1_e, CPU::res1_h, CPU::res1_l, CPU::res1_hl, CPU::res1_a,
+    CPU::res2_b, CPU::res2_c, CPU::res2_d, CPU::res2_e, CPU::res2_h, CPU::res2_l, CPU::res2_hl, CPU::res2_a,
+    CPU::res3_b, CPU::res3_c, CPU::res3_d, CPU::res3_e, CPU::res3_h, CPU::res3_l, CPU::res3_hl, CPU::res3_a,
+    CPU::res4_b, CPU::res4_c, CPU::res4_d, CPU::res4_e, CPU::res4_h, CPU::res4_l, CPU::res4_hl, CPU::res4_a,
+    CPU::res5_b, CPU::res5_c, CPU::res5_d, CPU::res5_e, CPU::res5_h, CPU::res5_l, CPU::res5_hl, CPU::res5_a,
+    CPU::res6_b, CPU::res6_c, CPU::res6_d, CPU::res6_e, CPU::res6_h, CPU::res6_l, CPU::res6_hl, CPU::res6_a,
+    CPU::res7_b, CPU::res7_c, CPU::res7_d, CPU::res7_e, CPU::res7_h, CPU::res7_l, CPU::res7_hl, CPU::res7_a,
+
+    CPU::set0_b, CPU::set0_c, CPU::set0_d, CPU::set0_e, CPU::set0_h, CPU::set0_l, CPU::set0_hl, CPU::set0_a,
+    CPU::set1_b, CPU::set1_c, CPU::set1_d, CPU::set1_e, CPU::set1_h, CPU::set1_l, CPU::set1_hl, CPU::set1_a,
+    CPU::set2_b, CPU::set2_c, CPU::set2_d, CPU::set2_e, CPU::set2_h, CPU::set2_l, CPU::set2_hl, CPU::set2_a,
+    CPU::set3_b, CPU::set3_c, CPU::set3_d, CPU::set3_e, CPU::set3_h, CPU::set3_l, CPU::set3_hl, CPU::set3_a,
+    CPU::set4_b, CPU::set4_c, CPU::set4_d, CPU::set4_e, CPU::set4_h, CPU::set4_l, CPU::set4_hl, CPU::set4_a,
+    CPU::set5_b, CPU::set5_c, CPU::set5_d, CPU::set5_e, CPU::set5_h, CPU::set5_l, CPU::set5_hl, CPU::set5_a,
+    CPU::set6_b, CPU::set6_c, CPU::set6_d, CPU::set6_e, CPU::set6_h, CPU::set6_l, CPU::set6_hl, CPU::set6_a,
+    CPU::set7_b, CPU::set7_c, CPU::set7_d, CPU::set7_e, CPU::set7_h, CPU::set7_l, CPU::set7_hl, CPU::set7_a,
 ];

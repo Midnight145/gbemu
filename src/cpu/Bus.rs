@@ -71,6 +71,9 @@ impl Bus {
                     _ => ()
                 }
             } else {
+                if (addr == 0xFF01) {
+                    print!("{}", value)
+                }
                 self.registers[(addr - 0xFF00) as usize] = value
             }
         }

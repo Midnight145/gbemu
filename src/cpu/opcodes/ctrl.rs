@@ -1,5 +1,6 @@
 use crate::cpu::Bus::Bus;
 use crate::cpu::CPU::CPU;
+use crate::cpu::opcodes::PREFIXED_OPCODES;
 
 // Control OPCODES
 impl CPU {
@@ -29,9 +30,7 @@ impl CPU {
 
     pub fn prefix(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let opcode = cpu.read_u8_from_pc(bus);
-        // todo: do something
-        // 4 + something
-        4
+        4 + PREFIXED_OPCODES[opcode as usize](cpu, bus)
     }
     
     pub fn invalid(cpu: &mut CPU, bus: &mut Bus) -> u8 {
