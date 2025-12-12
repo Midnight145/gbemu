@@ -11,7 +11,8 @@ impl CPU {
     }
 
     pub fn stop_n8(cpu: &mut CPU, bus: &mut Bus) -> u8 {
-        cpu.read_u8_from_pc(bus)
+        // cpu.read_u8_from_pc(bus);
+        4
         // todo: https://gbdev.io/pandocs/Reducing_Power_Consumption.html#using-the-stop-instruction
     }
 

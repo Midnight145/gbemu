@@ -102,6 +102,9 @@ impl CPU {
     pub fn srl_r8(register: &mut u8, flags: &mut Flags) {
         flags.C = *register & 1 != 0;
         *register >>= 1;
+        flags.Z = *register == 0;
+        flags.N = false;
+        flags.H = false;
     }
 
     pub fn srl_b(cpu: &mut CPU, bus: &mut Bus) -> u8 {

@@ -384,8 +384,8 @@ impl CPU {
     }
     pub fn ld_n16_sp(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let addr = cpu.read_u16_from_pc(bus);
-        bus.write_byte(addr, (cpu.PC & 0xFF) as u8);
-        bus.write_byte(addr + 1, (cpu.PC >> 8) as u8);
+        bus.write_byte(addr, (cpu.SP & 0xFF) as u8);
+        bus.write_byte(addr + 1, (cpu.SP >> 8) as u8);
         20
     }
     pub fn ld_de_n16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
@@ -404,7 +404,7 @@ impl CPU {
         12
     }
     pub fn ld_hl_sp_e8(cpu: &mut CPU, bus: &mut Bus) -> u8 {
-        let e8 = cpu.read_u8_from_pc(bus) as i16;
+        let e8 = cpu.read_u8_from_pc(bus) as i8 as i16;
         let sp = cpu.SP as i16;
         let result = sp.wrapping_add(e8);
 
@@ -415,10 +415,11 @@ impl CPU {
 
         cpu.flags.Z = false;
         cpu.flags.N = false;
-        cpu.flags.H = cpu.flags.check_half_carry_add_u8(sp_low, e8_u);
-        cpu.flags.C = cpu.flags.check_full_carry_add_u8(sp_low, e8_u);
+        cpu.flags.H = cpu.flags.check_half_carry_add_u8(sp_low, e8_u, 0);
+        cpu.flags.C = cpu.flags.check_full_carry_add_u8(sp_low, e8_u, 0);
         12
     }
+
     pub fn ld_sp_hl(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         cpu.SP = cpu.HL();
         12
@@ -496,7 +497,8 @@ impl CPU {
 
     pub fn pop_af(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let value = Self::pop_u16(cpu, bus);
-        cpu.write_AF(value & 0xF0);
+        // cpu.write_AF(value & 0xF0);
+        cpu.write_AF(value);
         // flags autocomputed
         12
     }

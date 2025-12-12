@@ -110,8 +110,8 @@ impl CPU {
     }
 
     pub fn call_nz_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let addr = cpu.read_u16_from_pc(bus);
         if !cpu.flags.Z {
-            let addr = cpu.read_u16_from_pc(bus);
             Self::push_u16(cpu, bus, cpu.PC);
             cpu.PC = addr;
             return 24;
@@ -120,8 +120,8 @@ impl CPU {
     }
 
     pub fn call_z_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let addr = cpu.read_u16_from_pc(bus);
         if cpu.flags.Z {
-            let addr = cpu.read_u16_from_pc(bus);
             Self::push_u16(cpu, bus, cpu.PC);
             cpu.PC = addr;
             return 24;
@@ -130,8 +130,8 @@ impl CPU {
     }
 
     pub fn call_nc_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
-        if !cpu.flags.Z {
-            let addr = cpu.read_u16_from_pc(bus);
+        let addr = cpu.read_u16_from_pc(bus);
+        if !cpu.flags.C {
             Self::push_u16(cpu, bus, cpu.PC);
             cpu.PC = addr;
             return 24;
@@ -140,8 +140,8 @@ impl CPU {
     }
 
     pub fn call_c_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
+        let addr = cpu.read_u16_from_pc(bus);
         if cpu.flags.C {
-            let addr = cpu.read_u16_from_pc(bus);
             Self::push_u16(cpu, bus, cpu.PC);
             cpu.PC = addr;
             return 24;
@@ -253,7 +253,7 @@ impl CPU {
 
     pub fn reti(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         Self::ret(cpu, bus);
-        Self::ei(cpu, bus);
+        cpu.ime = true;
         16
     }
 }

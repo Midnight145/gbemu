@@ -6,14 +6,14 @@ use crate::cpu::CPU::{Flags, CPU};
 // 8bit inc/dec operations
 impl CPU {
     fn inc_r8(reg: &mut u8, flags: &mut Flags) {
-        flags.H = flags.check_half_carry_add_u8(*reg, 1);
+        flags.H = flags.check_half_carry_add_u8(*reg, 1, 0);
         *reg = reg.wrapping_add(1);
         flags.Z = *reg == 0;
         flags.N = false;
     }
 
     fn dec_r8(reg: &mut u8, flags: &mut Flags) {
-        flags.H = flags.check_half_carry_sub_u8(*reg, 1);
+        flags.H = flags.check_half_carry_sub_u8(*reg, 1, 0);
         *reg = reg.wrapping_sub(1);
         flags.Z = *reg == 0;
         flags.N = true;
@@ -79,7 +79,7 @@ impl CPU {
     pub fn inc_hl_ptr(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let byte = bus.read_byte(cpu.HL());
         let added = byte.wrapping_add(1);
-        cpu.flags.H = cpu.flags.check_half_carry_add_u8(byte, 1);
+        cpu.flags.H = cpu.flags.check_half_carry_add_u8(byte, 1, 0);
         cpu.flags.Z = added == 0;
         cpu.flags.N = false;
         bus.write_byte(cpu.HL(), added);
@@ -89,7 +89,7 @@ impl CPU {
     pub fn dec_hl_ptr(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let byte = bus.read_byte(cpu.HL());
         let sub = byte.wrapping_sub(1);
-        cpu.flags.H = cpu.flags.check_half_carry_sub_u8(byte, 1);
+        cpu.flags.H = cpu.flags.check_half_carry_sub_u8(byte, 1, 0);
         cpu.flags.Z = sub == 0;
         cpu.flags.N = true;
         bus.write_byte(cpu.HL(), sub);
@@ -135,16 +135,16 @@ impl CPU {
 // 8bit add/sub register-register operations
 impl CPU {
     pub fn add_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
-        flags.H = flags.check_half_carry_add_u8(*reg1, reg2);
-        flags.C = flags.check_full_carry_add_u8(*reg1, reg2);
+        flags.H = flags.check_half_carry_add_u8(*reg1, reg2, 0);
+        flags.C = flags.check_full_carry_add_u8(*reg1, reg2, 0);
         *reg1 = reg1.wrapping_add(reg2);
         flags.Z = *reg1 == 0;
         flags.N = false;
     }
 
     pub fn sub_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
-        flags.H = flags.check_half_carry_sub_u8(*reg1, reg2);
-        flags.C = flags.check_full_carry_sub_u8(*reg1, reg2);
+        flags.H = flags.check_half_carry_sub_u8(*reg1, reg2, 0);
+        flags.C = flags.check_full_carry_sub_u8(*reg1, reg2, 0);
         *reg1 = reg1.wrapping_sub(reg2);
         flags.Z = *reg1 == 0;
         flags.N = true;
@@ -285,22 +285,24 @@ impl CPU {
 impl CPU {
     pub fn adc_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
         let carry = flags.C as u8;
-        let b = reg2.wrapping_add(carry);
-        flags.H = flags.check_half_carry_sub_u8(*reg1, b);
-        flags.C = flags.check_full_carry_sub_u8(*reg1, b);
-        *reg1 = reg1.wrapping_add(reg2).wrapping_add(carry);
+        let a = *reg1;
+        let b = reg2;
+        *reg1 = reg1.wrapping_add(b.wrapping_add(carry));
         flags.Z = *reg1 == 0;
         flags.N = false;
+        flags.H = flags.check_half_carry_add_u8(a, b, carry);
+        flags.C = flags.check_full_carry_add_u8(a, b, carry);
     }
 
     pub fn sbc_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
         let carry = flags.C as u8;
-        let b = reg2.wrapping_add(carry);
-        flags.H = flags.check_half_carry_sub_u8(*reg1, b);
-        flags.C = flags.check_full_carry_sub_u8(*reg1, b);
-        *reg1 = reg1.wrapping_sub(reg2).wrapping_sub(carry);
+        let a = *reg1;
+        let b = reg2;
+        *reg1 = reg1.wrapping_sub(b.wrapping_add(carry));
         flags.Z = *reg1 == 0;
         flags.N = true;
+        flags.H = flags.check_half_carry_sub_u8(a, b, carry);
+        flags.C = flags.check_full_carry_sub_u8(a, b, carry);
     }
 
 
@@ -408,8 +410,8 @@ impl CPU {
 
     pub fn cp_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
 
-        flags.H = flags.check_half_carry_sub_u8(*reg1, reg2);
-        flags.C = flags.check_full_carry_sub_u8(*reg1, reg2);
+        flags.H = flags.check_half_carry_sub_u8(*reg1, reg2, 0);
+        flags.C = flags.check_full_carry_sub_u8(*reg1, reg2, 0);
         flags.Z = reg1.wrapping_sub(reg2) == 0;
         flags.N = true;
     }
