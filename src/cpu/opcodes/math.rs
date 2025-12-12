@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use crate::cpu::Bus::Bus;
 use crate::cpu::CPU::{Flags, CPU};
 
@@ -283,8 +285,9 @@ impl CPU {
 impl CPU {
     pub fn adc_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
         let carry = flags.C as u8;
-        flags.H = flags.check_half_carry_add_u8(*reg1, reg2 + carry);
-        flags.C = flags.check_full_carry_add_u8(*reg1, reg2 + carry);
+        let b = reg2.wrapping_add(carry);
+        flags.H = flags.check_half_carry_sub_u8(*reg1, b);
+        flags.C = flags.check_full_carry_sub_u8(*reg1, b);
         *reg1 = reg1.wrapping_add(reg2).wrapping_add(carry);
         flags.Z = *reg1 == 0;
         flags.N = false;
@@ -292,8 +295,9 @@ impl CPU {
 
     pub fn sbc_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
         let carry = flags.C as u8;
-        flags.H = flags.check_half_carry_sub_u8(*reg1, reg2 + carry);
-        flags.C = flags.check_full_carry_sub_u8(*reg1, reg2 + carry);
+        let b = reg2.wrapping_add(carry);
+        flags.H = flags.check_half_carry_sub_u8(*reg1, b);
+        flags.C = flags.check_full_carry_sub_u8(*reg1, b);
         *reg1 = reg1.wrapping_sub(reg2).wrapping_sub(carry);
         flags.Z = *reg1 == 0;
         flags.N = true;
@@ -403,6 +407,7 @@ impl CPU {
     }
 
     pub fn cp_r8_r8(reg1: &mut u8, reg2: u8, flags: &mut Flags) {
+
         flags.H = flags.check_half_carry_sub_u8(*reg1, reg2);
         flags.C = flags.check_full_carry_sub_u8(*reg1, reg2);
         flags.Z = reg1.wrapping_sub(reg2) == 0;

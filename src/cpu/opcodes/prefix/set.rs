@@ -1,5 +1,7 @@
+#![allow(unused_variables)]
+
 use crate::cpu::Bus::Bus;
-use crate::cpu::CPU::{Flags, CPU};
+use crate::cpu::CPU::CPU;
 
 // set
 impl CPU {

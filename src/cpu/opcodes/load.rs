@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use crate::cpu::Bus::Bus;
 use crate::cpu::CPU::CPU;
 
@@ -425,7 +427,7 @@ impl CPU {
 
 // LDH (High RAM) operations
 impl CPU {
-    // a8 is an 8 bit address which gets added to 0xFF00
+    // a8 is an 8-bit address which gets added to 0xFF00
     pub fn ldh_a8_a(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let mut addr = cpu.read_u8_from_pc(bus) as u16;
         addr |= 0xFF00;
@@ -473,9 +475,9 @@ impl CPU {
 
     pub fn push_u16(cpu: &mut CPU, bus: &mut Bus, value: u16) {
         cpu.SP = cpu.SP.wrapping_sub(1);
-        bus.write_byte(cpu.SP, (value & 0xFF) as u8);
-        cpu.SP = cpu.SP.wrapping_sub(1);
         bus.write_byte(cpu.SP, (value >> 8) as u8);
+        cpu.SP = cpu.SP.wrapping_sub(1);
+        bus.write_byte(cpu.SP, (value & 0xFF) as u8);
     }
 
     pub fn pop_u16(cpu: &mut CPU, bus: &mut Bus) -> u16 {

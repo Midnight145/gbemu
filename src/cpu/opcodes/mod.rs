@@ -8,7 +8,7 @@ mod ctrl;
 mod bitops;
 mod prefix;
 
-const OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
+pub const OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
     CPU::nop, CPU::ld_bc_n16, CPU::ld_bc_a, CPU::inc_bc, CPU::inc_b, CPU::dec_b, CPU::ld_b_n8, CPU::rlca,
     CPU::ld_n16_sp, CPU::add_hl_bc, CPU::ld_a_bc, CPU::dec_bc, CPU::inc_c, CPU::dec_c, CPU::ld_c_n8, CPU::rrca,
 
@@ -58,7 +58,7 @@ const OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
     CPU::ld_hl_sp_e8, CPU::ld_sp_hl, CPU::ld_a_a16, CPU::ei, CPU::invalid, CPU::invalid, CPU::cp_a_u8, CPU::rst_38
 ];
 
-const PREFIXED_OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
+pub const PREFIXED_OPCODES: [fn(&mut CPU, &mut Bus) -> u8;256] = [
     CPU::rlc_b, CPU::rlc_c, CPU::rlc_d, CPU::rlc_e, CPU::rlc_h, CPU::rlc_l, CPU::rlc_hl, CPU::rlc_a,
     CPU::rrc_b, CPU::rrc_c, CPU::rrc_d, CPU::rrc_e, CPU::rrc_h, CPU::rrc_l, CPU::rrc_hl, CPU::rrc_a,
 
