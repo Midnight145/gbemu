@@ -18,8 +18,8 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn new(bytes: Vec<u8>) -> Header {
-        let b = &*bytes;
+    pub fn new(bytes: &Vec<u8>) -> Header {
+        let b = bytes;
         let header = &b[0x100..0x150];
 
         let entrypoint: [u8; 4]        = header[0x00..0x04].try_into().unwrap();
