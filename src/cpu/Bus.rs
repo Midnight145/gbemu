@@ -6,47 +6,81 @@ use crate::cpu::Interrupts;
 use crate::cpu::Interrupts::Interrupt;
 
 pub struct Bus {
+    pub read: fn(&Bus, u16) -> u8,
+    pub write: fn(&mut Bus, u16, u8),
     pub mbc: Box<dyn MBC>,
     pub VRAM: Vec<u8>,
     pub WRAM: Vec<u8>,
     pub OAM: [u8; 0xA0],
-    pub HRAM: [u8; 0x7F],
-    pub registers: [u8; 0x7F],
+    pub HRAM: [u8; 0x80],
+    pub registers: [u8; 0x80],
     pub timer: Timer,
     pub joypad: u8,
     pub interrupt_enable: u8,
+    ram: Vec<u8> // used only for tests
 }
 
 impl Bus {
     pub fn new(mbc: Box<dyn MBC>) -> Bus {
-         Bus {
+        Bus {
+            read: Bus::map_read_byte,
+            write: Bus::map_write_byte,
             mbc,
             VRAM: vec![0; 0x2000],
             WRAM: vec![0; 0x2000],
             OAM: [0; 0xA0],
-            registers: [0; 0x7F],
-            HRAM: [0; 0x7F],
+            registers: [0; 0x80],
+            HRAM: [0; 0x80],
             timer: Timer::new(),
             joypad: 0,
             interrupt_enable: 0,
+            ram: vec![]
         }
     }
 
     pub fn default() -> Bus {
         Bus {
+            read: Bus::map_read_byte,
+            write: Bus::map_write_byte,
             mbc: mbc::default(),
             VRAM: vec![0; 0x2000],
             WRAM: vec![0; 0x2000],
             OAM: [0; 0xA0],
-            registers: [0; 0x7F],
-            HRAM: [0; 0x7F],
+            registers: [0; 0x80],
+            HRAM: [0; 0x80],
             timer: Timer::new(),
             joypad: 0,
             interrupt_enable: 0,
+            ram: vec![]
+        }
+    }
+
+    pub fn test() -> Bus {
+        Bus {
+            read: Bus::test_read_byte,
+            write: Bus::test_write_byte,
+            mbc: mbc::default(),
+            VRAM: vec![0; 0x2000],
+            WRAM: vec![0; 0x2000],
+            OAM: [0; 0xA0],
+            registers: [0; 0x80],
+            HRAM: [0; 0x80],
+            timer: Timer::new(),
+            joypad: 0,
+            interrupt_enable: 0,
+            ram: vec![0; 65536]
         }
     }
 
     pub fn write_byte(&mut self, addr: u16, value: u8) {
+        (self.write)(self, addr, value);
+    }
+
+    pub fn read_byte(&self, addr: u16) -> u8 {
+        (self.read)(self, addr)
+    }
+
+    pub fn map_write_byte(&mut self, addr: u16, value: u8) {
         if addr <= 0x7FFF {
             self.mbc.write_rom(addr, value)
         }
@@ -86,7 +120,7 @@ impl Bus {
                 }
             } else {
                 if addr == 0xFF01 || addr == 0xFF02 {
-                    print!("{}", value)
+                    // print!("{}", value)
                 }
                 self.registers[(addr - 0xFF00) as usize] = value
             }
@@ -99,7 +133,7 @@ impl Bus {
         }
     }
 
-    pub fn read_byte(&self, addr: u16) -> u8 {
+    pub fn map_read_byte(&self, addr: u16) -> u8 {
         if addr <= 0x7FFF {
             return self.mbc.read_rom(addr)
         }
@@ -137,7 +171,14 @@ impl Bus {
         else if addr <= 0xFFFE{
             return self.HRAM[(addr - 0xFF80) as usize]
         }
-        0xFF
+        self.interrupt_enable
+    }
+
+    pub fn test_write_byte(&mut self, addr: u16, value: u8) {
+        self.ram[addr as usize] = value;
+    }
+    pub fn test_read_byte(&self, addr: u16) -> u8 {
+        self.ram[addr as usize]
     }
 
     pub fn write_interrupt(&mut self, interrupt: Interrupt) {
