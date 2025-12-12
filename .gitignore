@@ -1,2 +1,5 @@
 /target
 .idea/
+failed_tests.log
+binjgb/
+*.gb
