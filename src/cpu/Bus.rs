@@ -1,34 +1,48 @@
 #![allow(non_snake_case)]
-use crate::cpu::MBC::MBC;
+
+use crate::cartridge::mbc;
+use crate::cartridge::mbc::MBC;
 use crate::cpu::Interrupts;
 use crate::cpu::Interrupts::Interrupt;
 
 pub struct Bus {
-    pub mbc: MBC,
+    pub mbc: Box<dyn MBC>,
     pub VRAM: Vec<u8>,
     pub WRAM: Vec<u8>,
     pub OAM: [u8; 0xA0],
-    pub HRAM: [u8; 0x7E],
+    pub HRAM: [u8; 0x7F],
     pub registers: [u8; 0x7F],
     pub timer: Timer,
     pub joypad: u8,
     pub interrupt_enable: u8,
-    bank: u8,
 }
 
 impl Bus {
-    pub fn new() -> Bus {
-        Bus {
-            mbc: MBC::new(),
+    pub fn new(mbc: Box<dyn MBC>) -> Bus {
+         Bus {
+            mbc,
             VRAM: vec![0; 0x2000],
             WRAM: vec![0; 0x2000],
             OAM: [0; 0xA0],
             registers: [0; 0x7F],
-            HRAM: [0; 0x7E],
+            HRAM: [0; 0x7F],
             timer: Timer::new(),
             joypad: 0,
             interrupt_enable: 0,
-            bank: 1,
+        }
+    }
+
+    pub fn default() -> Bus {
+        Bus {
+            mbc: mbc::default(),
+            VRAM: vec![0; 0x2000],
+            WRAM: vec![0; 0x2000],
+            OAM: [0; 0xA0],
+            registers: [0; 0x7F],
+            HRAM: [0; 0x7F],
+            timer: Timer::new(),
+            joypad: 0,
+            interrupt_enable: 0,
         }
     }
 
@@ -40,7 +54,7 @@ impl Bus {
             self.VRAM[(addr - 0x8000) as usize] = value
         }
         else if addr <= 0xBFFF {
-        self.mbc.write_eram(addr, value)
+        self.mbc.write_rom(addr, value)
         }
         else if addr <= 0xDFFF {
             self.WRAM[(addr - 0xC000) as usize] = value
@@ -71,7 +85,7 @@ impl Bus {
                     _ => ()
                 }
             } else {
-                if (addr == 0xFF01) {
+                if addr == 0xFF01 || addr == 0xFF02 {
                     print!("{}", value)
                 }
                 self.registers[(addr - 0xFF00) as usize] = value
@@ -93,7 +107,7 @@ impl Bus {
             return self.VRAM[(addr - 0x8000) as usize]
         }
         else if addr <= 0xBFFF {
-            return self.mbc.read_eram(addr)
+            return self.mbc.read_rom(addr)
         }
         else if addr <= 0xDFFF {
             return self.WRAM[(addr - 0xC000) as usize]
@@ -167,7 +181,7 @@ impl Timer {
     }
 
     pub fn update(&mut self, cycles: u16) -> bool {
-        self.counter += cycles;
+        self.counter = self.counter.wrapping_add(cycles);
         self.DIV = self.DIV.wrapping_add((self.counter >> 8) as u8);
 
         if self.TAC & 0b100 == 0 {
@@ -197,6 +211,7 @@ impl Timer {
         interrupt
     }
 
+    #[allow(unused_variables)]
     pub fn write_div(&mut self, value: u8) {
         self.DIV = 0
     }

@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use std::ops::Add;
 use crate::cpu::Bus::Bus;
 
 pub struct CPU {
@@ -24,21 +25,25 @@ pub struct CPU {
 impl CPU {
     pub fn new() -> CPU {
         CPU {
-            A: 0,
-            B: 0,
-            C: 0,
-            D: 0,
-            E: 0,
-            F: 0,
-            H: 0,
-            L: 0,
-            SP: 0,
-            PC: 0,
+            A: 0x01,
+            B: 0x00,
+            C: 0x13,
+            D: 0x00,
+            E: 0xD8,
+            F: 0b10110000,
+            H: 0x01,
+            L: 0x4D,
+            SP: 0xFFFE,
+            PC: 0x100, // cartridge entry point
             flags: Flags {
-                Z: false,
+                // Z: false,
+                // N: false,
+                // H: false,
+                // C: false
+                Z: true,
                 N: false,
-                H: false,
-                C: false,
+                H: true,
+                C: true,
             },
             ime: false,
             ime_scheduled: false,
@@ -105,6 +110,7 @@ impl CPU {
 
     pub fn read_u8_from_pc(&mut self, bus: &Bus) -> u8 {
         let byte = bus.read_byte(self.PC);
+        // print!("{:02x} ", byte);
         self.PC += 1;
         byte
     }
@@ -175,6 +181,31 @@ impl Flags {
         if self.H { f |= 0b0010_0000; }
         if self.C { f |= 0b0001_0000; }
         f
+    }
+
+    pub fn to_str(&self) -> String {
+        let mut s: String = String::new();
+        s += if self.Z {
+            "Z"
+        } else {
+            "-"
+        };
+        s += if self.N {
+            "N"
+        } else {
+            "-"
+        };
+        s += if self.H {
+            "H"
+        } else {
+            "-"
+        };
+        s += if self.C {
+            "C"
+        } else {
+            "-"
+        };
+        s
     }
 
 }
