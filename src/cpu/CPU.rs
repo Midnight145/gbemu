@@ -36,10 +36,6 @@ impl CPU {
             SP: 0xFFFE,
             PC: 0x100, // cartridge entry point
             flags: Flags {
-                // Z: false,
-                // N: false,
-                // H: false,
-                // C: false
                 Z: true,
                 N: false,
                 H: true,
@@ -111,7 +107,7 @@ impl CPU {
     pub fn read_u8_from_pc(&mut self, bus: &Bus) -> u8 {
         let byte = bus.read_byte(self.PC);
         // print!("{:02x} ", byte);
-        self.PC += 1;
+        self.PC = self.PC.wrapping_add(1);
         byte
     }
 
@@ -132,20 +128,20 @@ pub struct Flags {
 }
 
 impl Flags {
-    pub fn check_half_carry_add_u8(&self, a: u8, b: u8) -> bool {
-        ((a & 0x0F) + (b & 0x0F)) & 0x10 == 0x10
+    pub fn check_half_carry_add_u8(&self, a: u8, b: u8, carry: u8) -> bool {
+        (a & 0x0F).wrapping_add((b & 0x0F).wrapping_add(carry)) & 0x10 != 0
     }
 
-    pub fn check_half_carry_sub_u8(&self, a: u8, b: u8) -> bool {
-        (a & 0x0F) < (b & 0x0F)
+    pub fn check_half_carry_sub_u8(&self, a: u8, b: u8, carry: u8) -> bool {
+        (a & 0x0F) < ((b & 0x0F).wrapping_add(carry))
     }
 
-    pub fn check_full_carry_add_u8(&self, a: u8, b: u8) -> bool {
-        (a as u16 + b as u16) > 0xFF
+    pub fn check_full_carry_add_u8(&self, a: u8, b: u8, carry: u8) -> bool {
+        (a as u16 + (b as u16 + carry as u16)) > 0xFF
     }
 
-    pub fn check_full_carry_sub_u8(&self, a: u8, b: u8) -> bool {
-        a < b
+    pub fn check_full_carry_sub_u8(&self, a: u8, b: u8, carry: u8) -> bool {
+        (a as u16) < (b as u16).wrapping_add(carry as u16)
     }
 
     pub fn check_half_carry_add_u16(&self, a: u16, b: u16) -> bool {
