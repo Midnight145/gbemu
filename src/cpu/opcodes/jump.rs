@@ -1,3 +1,6 @@
+#![allow(unused_variables)]
+
+
 use crate::cpu::Bus::Bus;
 use crate::cpu::CPU::CPU;
 
@@ -12,7 +15,7 @@ impl CPU {
     pub fn jr_nz_e8(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         let offset = cpu.read_u8_from_pc(bus) as i8;
         if !cpu.flags.Z {
-            cpu.PC = cpu.PC.wrapping_add(offset as i16 as u16);
+            cpu.PC = cpu.PC.wrapping_add(offset as u16);
             return 12;
         }
         8
@@ -99,17 +102,18 @@ impl CPU {
 // Call/RST insns
 impl CPU {
     pub fn call_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
-        let next = cpu.PC + 1;
-        Self::push_u16(cpu, bus, next);
-        Self::jp_a16(cpu, bus);
+
+        let addr = cpu.read_u16_from_pc(bus);
+        Self::push_u16(cpu, bus, cpu.PC);
+        cpu.PC = addr;
         24
     }
 
     pub fn call_nz_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         if !cpu.flags.Z {
-            let next = cpu.PC + 1;
-            Self::push_u16(cpu, bus, next);
-            Self::jp_a16(cpu, bus);
+            let addr = cpu.read_u16_from_pc(bus);
+            Self::push_u16(cpu, bus, cpu.PC);
+            cpu.PC = addr;
             return 24;
         }
         12
@@ -117,9 +121,9 @@ impl CPU {
 
     pub fn call_z_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         if cpu.flags.Z {
-            let next = cpu.PC + 1;
-            Self::push_u16(cpu, bus, next);
-            Self::jp_a16(cpu, bus);
+            let addr = cpu.read_u16_from_pc(bus);
+            Self::push_u16(cpu, bus, cpu.PC);
+            cpu.PC = addr;
             return 24;
         }
         12
@@ -127,9 +131,9 @@ impl CPU {
 
     pub fn call_nc_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         if !cpu.flags.Z {
-            let next = cpu.PC + 1;
-            Self::push_u16(cpu, bus, next);
-            Self::jp_a16(cpu, bus);
+            let addr = cpu.read_u16_from_pc(bus);
+            Self::push_u16(cpu, bus, cpu.PC);
+            cpu.PC = addr;
             return 24;
         }
         12
@@ -137,9 +141,9 @@ impl CPU {
 
     pub fn call_c_a16(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         if cpu.flags.C {
-            let next = cpu.PC + 1;
-            Self::push_u16(cpu, bus, next);
-            Self::jp_a16(cpu, bus);
+            let addr = cpu.read_u16_from_pc(bus);
+            Self::push_u16(cpu, bus, cpu.PC);
+            cpu.PC = addr;
             return 24;
         }
         12
