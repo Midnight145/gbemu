@@ -23,6 +23,7 @@ impl CPU {
 
     pub fn di(cpu: &mut CPU, bus: &mut Bus) -> u8 {
         cpu.ime = false;
+        cpu.ime_scheduled = false;
         4
     }
 
