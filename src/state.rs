@@ -1,0 +1,3 @@
+struct State {
+    DEBUG: bool
+}
