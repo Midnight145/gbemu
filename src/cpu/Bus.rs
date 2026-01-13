@@ -2,8 +2,10 @@
 
 use crate::cartridge::mbc;
 use crate::cartridge::mbc::MBC;
-use crate::cpu::Interrupts;
-use crate::cpu::Interrupts::Interrupt;
+use crate::registers::interrupts::Interrupts;
+use crate::registers::{Joypad, Serial};
+use std::io;
+use std::io::Write;
 
 pub struct Bus {
     pub read: fn(&Bus, u16) -> u8,
@@ -13,9 +15,11 @@ pub struct Bus {
     pub WRAM: Vec<u8>,
     pub OAM: [u8; 0xA0],
     pub HRAM: [u8; 0x80],
+    pub serial: Serial,
     pub registers: [u8; 0x80],
+    pub interrupts: Interrupts,
     pub timer: Timer,
-    pub joypad: u8,
+    pub joypad: Joypad,
     pub interrupt_enable: u8,
     ram: Vec<u8> // used only for tests
 }
@@ -29,27 +33,12 @@ impl Bus {
             VRAM: vec![0; 0x2000],
             WRAM: vec![0; 0x2000],
             OAM: [0; 0xA0],
+            serial: Serial::new(),
             registers: [0; 0x80],
             HRAM: [0; 0x80],
+            interrupts: Interrupts::new(),
             timer: Timer::new(),
-            joypad: 0,
-            interrupt_enable: 0,
-            ram: vec![]
-        }
-    }
-
-    pub fn default() -> Bus {
-        Bus {
-            read: Bus::map_read_byte,
-            write: Bus::map_write_byte,
-            mbc: mbc::default(),
-            VRAM: vec![0; 0x2000],
-            WRAM: vec![0; 0x2000],
-            OAM: [0; 0xA0],
-            registers: [0; 0x80],
-            HRAM: [0; 0x80],
-            timer: Timer::new(),
-            joypad: 0,
+            joypad: Joypad::new(),
             interrupt_enable: 0,
             ram: vec![]
         }
@@ -63,10 +52,12 @@ impl Bus {
             VRAM: vec![0; 0x2000],
             WRAM: vec![0; 0x2000],
             OAM: [0; 0xA0],
+            serial: Serial::new(),
             registers: [0; 0x80],
             HRAM: [0; 0x80],
+            interrupts: Interrupts::new(),
             timer: Timer::new(),
-            joypad: 0,
+            joypad: Joypad::new(),
             interrupt_enable: 0,
             ram: vec![0; 65536]
         }
@@ -83,52 +74,44 @@ impl Bus {
     pub fn map_write_byte(&mut self, addr: u16, value: u8) {
         if addr <= 0x7FFF {
             self.mbc.write_rom(addr, value)
-        }
-        else if addr <= 0x9FFF {
+        } else if addr <= 0x9FFF {
             self.VRAM[(addr - 0x8000) as usize] = value
-        }
-        else if addr <= 0xBFFF {
-        self.mbc.write_rom(addr, value)
-        }
-        else if addr <= 0xDFFF {
+        } else if addr <= 0xBFFF {
+            self.mbc.write_rom(addr, value)
+        } else if addr <= 0xDFFF {
             self.WRAM[(addr - 0xC000) as usize] = value
-        }
-        else if addr <= 0xFDFF {
-            let wram_addr = addr - 0xE000; // E000 → 0
+        } else if addr <= 0xFDFF {
+            let wram_addr = addr - 0xE000;
             self.WRAM[wram_addr as usize] = value;
-        }
-        else if addr <= 0xFE9F {
+        } else if addr <= 0xFE9F {
             self.OAM[(addr - 0xFE00) as usize] = value
-        }
-        else if addr <= 0xFEFF {
+        } else if addr <= 0xFEFF {
             // TODO: https://gbdev.io/pandocs/Memory_Map.html#fea0feff-range
-        }
-        else if addr == 0xFF00 {
-            self.joypad = value;
-            return;
-        }
-        else if addr <= 0xFF7F {
-            if 0xFF04 <= addr && addr <= 0xFF07 {
-                match addr {
-                    0xFF04 => self.timer.write_div(value),
-                    0xFF05 => {
-                        self.timer.write_tima(value)
-                    },
-                    0xFF06 => self.timer.write_tma(value),
-                    0xFF07 => self.timer.write_tac(value),
-                    _ => ()
-                }
-            } else {
-                if addr == 0xFF01 || addr == 0xFF02 {
-                    // print!("{}", value)
-                }
-                self.registers[(addr - 0xFF00) as usize] = value
+        } else if addr <= 0xFF7F {
+            match addr {
+                0xFF00 => self.joypad.write_joypad(value),
+                0xFF01 => self.serial.data = value,
+                0xFF02 => {
+                    self.serial.status = value;
+                    if (value & 0x80) != 0 {
+                        let c = self.serial.data;
+                        if c != 0 {
+                            print!("{}", c as char);
+                            io::stdout().flush().unwrap();
+                        }
+                        self.serial.status &= !0x80; // clear transfer bit
+                    }
+                },
+                0xFF04 => self.timer.write_div(value),
+                0xFF05 => self.timer.write_tima(value),
+                0xFF06 => self.timer.write_tma(value),
+                0xFF07 => self.timer.write_tac(value),
+                0xFF0F => self.interrupts.write_interrupts(value),
+                _ => self.registers[(addr - 0xFF00) as usize] = value,
             }
-        }
-        else if addr <= 0xFFFE{
+        } else if addr <= 0xFFFE {
             self.HRAM[(addr - 0xFF80) as usize] = value
-        }
-        else if addr == 0xFFFF {
+        } else if addr == 0xFFFF {
             self.interrupt_enable = value;
         }
     }
@@ -136,39 +119,33 @@ impl Bus {
     pub fn map_read_byte(&self, addr: u16) -> u8 {
         if addr <= 0x7FFF {
             return self.mbc.read_rom(addr)
-        }
-        else if addr <= 0x9FFF {
+        } else if addr <= 0x9FFF {
             return self.VRAM[(addr - 0x8000) as usize]
-        }
-        else if addr <= 0xBFFF {
+        } else if addr <= 0xBFFF {
             return self.mbc.read_rom(addr)
-        }
-        else if addr <= 0xDFFF {
+        } else if addr <= 0xDFFF {
             return self.WRAM[(addr - 0xC000) as usize]
-        }
-        else if addr <= 0xFDFF {
+        } else if addr <= 0xFDFF {
             return self.read_byte(addr - 0x2000)
-        }
-        else if addr <= 0xFE9F {
+        } else if addr <= 0xFE9F {
             return self.OAM[(addr - 0xFE00) as usize]
-        }
-        else if addr <= 0xFEFF {
+        } else if addr <= 0xFEFF {
             // TODO: https://gbdev.io/pandocs/Memory_Map.html#fea0feff-range
             return 0xFF
-        }
-        else if addr <= 0xFF7F {
-            if 0xFF04 <= addr && addr <= 0xFF07 {
-                return match addr {
-                    0xFF04 => self.timer.DIV,
-                    0xFF05 => self.timer.TIMA,
-                    0xFF06 => self.timer.TMA,
-                    0xFF07 => self.timer.TAC,
-                    _ => 0
-                }
-            }
-            return self.registers[(addr - 0xFF00) as usize]
-        }
-        else if addr <= 0xFFFE{
+        } else if addr <= 0xFF7F {
+            match addr {
+                0xFF44 => 0x90, // LY stub for cpu_instrs.gb
+                0xFF00 => self.joypad.read_joypad(),
+                0xFF01 => self.serial.data,
+                0xFF02 => self.serial.status,
+                0xFF04 => self.timer.DIV,
+                0xFF05 => self.timer.TIMA,
+                0xFF06 => self.timer.TMA,
+                0xFF07 => self.timer.TAC,
+                0xFF0F => self.interrupts.read_interrupts(),
+                _ => self.registers[(addr - 0xFF00) as usize]
+            };
+        } else if addr <= 0xFFFE {
             return self.HRAM[(addr - 0xFF80) as usize]
         }
         self.interrupt_enable
@@ -179,25 +156,6 @@ impl Bus {
     }
     pub fn test_read_byte(&self, addr: u16) -> u8 {
         self.ram[addr as usize]
-    }
-
-    pub fn write_interrupt(&mut self, interrupt: Interrupt) {
-        let interrupts = self.read_byte(Interrupts::ADDRESS);
-        self.write_byte(Interrupts::ADDRESS, interrupts | interrupt as u8)
-    }
-
-    pub fn read_interrupts(&mut self) -> Interrupts::Interrupts {
-        let byte = self.read_byte(0xFF0F);
-        Interrupts::Interrupts {
-            vblank: byte & Interrupt::VBLANK as u8 != 0,
-            lcd: byte & Interrupt::LCD as u8 != 0,
-            timer: byte & Interrupt::TIMER as u8 != 0,
-            serial: byte & Interrupt::SERIAL as u8 != 0,
-            joypad: byte & Interrupt::JOYPAD as u8 != 0,
-            un5: byte & Interrupt::UN5 as u8 != 0,
-            un6: byte & Interrupt::UN6 as u8 != 0,
-            un7: byte & Interrupt::UN7 as u8 != 0,
-        }
     }
 }
 
