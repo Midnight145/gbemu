@@ -1,10 +1,10 @@
-use serde::{Serialize, Deserialize};
-use crate::cpu;
 use crate::cpu::Bus::Bus;
 use crate::cpu::CPU::CPU;
+use crate::{cpu, tests, state};
+use serde::{Deserialize, Serialize};
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
-
 
 pub type TestFile = Vec<TestCase>;
 
@@ -67,7 +67,7 @@ pub struct CycleEntry(
 
 pub fn create(case: &TestCase) -> (CPU, Bus) {
     let mut cpu = CPU::new();
-    let mut bus = Bus::default();
+    let mut bus = Bus::test();
     cpu.A = case.initial.a;
     cpu.B = case.initial.b;
     cpu.C = case.initial.c;
@@ -98,8 +98,8 @@ pub fn execute(cpu: &mut CPU, bus: &mut Bus) {
 }
 
 
-pub fn check(case: TestCase, cpu: CPU, bus: Bus) {
-    println!("Test {}:", case.name);
+pub fn check(case: TestCase, cpu: CPU, bus: Bus) -> bool {
+    let debug =  state::STATE.lock().unwrap().DEBUG;
 
     let mut failed = false;
     let mut log = String::new();
@@ -147,10 +147,12 @@ pub fn check(case: TestCase, cpu: CPU, bus: Bus) {
 
     let expected_ime = case.final_.ime != 0;
     if cpu.ime != expected_ime {
-        println!(
-            "  IME mismatch: expected {}, got {}",
-            expected_ime, cpu.ime
-        );
+        if debug {
+            println!(
+                "  IME mismatch: expected {}, got {}",
+                expected_ime, cpu.ime
+            );
+        }
         log.push_str(&format!(
             "  IME mismatch: expected {}, got {}\n",
             expected_ime, cpu.ime
@@ -161,10 +163,12 @@ pub fn check(case: TestCase, cpu: CPU, bus: Bus) {
     for entry in case.final_.ram {
         let actual = bus.read_byte(entry.0);
         if actual != entry.1 {
-            println!(
-                "  RAM[{:#06x}] mismatch: expected {:#04x}, got {:#04x}",
-                entry.0, entry.1, actual
-            );
+            if debug {
+                println!(
+                    "  RAM[{:#06x}] mismatch: expected {:#04x}, got {:#04x}",
+                    entry.0, entry.1, actual
+                );
+            }
             log.push_str(&format!(
                 "  RAM[{:#06x}] mismatch: expected {:#04x}, got {:#04x}\n",
                 entry.0, entry.1, actual
@@ -174,7 +178,9 @@ pub fn check(case: TestCase, cpu: CPU, bus: Bus) {
     }
 
     if failed {
-        println!("RESULT: FAILED\n");
+        if debug {
+            println!("RESULT: FAILED\n");
+        }
 
         log.push('\n');
 
@@ -185,7 +191,53 @@ pub fn check(case: TestCase, cpu: CPU, bus: Bus) {
             .expect("Could not open failed_tests.log");
 
         file.write_all(log.as_bytes()).unwrap();
-    } else {
-        println!("RESULT: SUCCESS\n");
+        return false
     }
+    true
 }
+
+
+pub fn run_tests() {
+    let path = "./sm83/v1/";
+    let readdir = std::fs::read_dir(path);
+    match readdir {
+        Err(_) => panic!("failed to open directory"),
+        Ok(_) => {}
+    }
+    let mut test_count = 0;
+    let mut succeeded = 0;
+    let mut failed = 0;
+    let files = readdir.unwrap();
+    for file in files {
+        if file.is_ok() {
+            let f = file.unwrap();
+            let contents = fs::read_to_string(f.path());
+            if contents.is_ok() {
+                let json = serde_json::from_str::<TestFile>(&contents.unwrap());
+                if json.is_ok() {
+                    let cases = json.unwrap();
+                    for case in cases {
+
+                        let (mut cpu, mut bus) = tests::create(&case);
+                        for value in case.initial.ram.iter().clone() {
+                            bus.write_byte(value.0, value.1);
+                        }
+
+                        execute(&mut cpu, &mut bus);
+                        if check(case, cpu, bus) {
+                            succeeded += 1
+                        } else {
+                            failed += 1
+                        }
+                        test_count += 1;
+                    }
+                } else {
+                    let err = json.err().unwrap();
+                    println!("{:?}: {}", f.file_name(), err);
+                }
+            }
+        }
+    }
+    println!("Tests complete. {}/{} passed, {}/{} failed. | {:02}% success rate.", succeeded, test_count, failed, test_count, ((succeeded as f32) / (test_count as f32) * 100f32));
+}
+
